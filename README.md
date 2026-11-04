@@ -10,7 +10,7 @@ records, query them, and update and delete individual calculations.
 - [Successful tests and Compose verification](https://github.com/tkg1121/fastapi-postgres-calculator/actions/runs/41763079480)
 - [CI verification screenshot](docs/database/CI%20verification.jpg)
 - [Database assignment PDF with screenshots](docs/Database%20Assignment%20Submission.pdf) - forthcoming
-- [Reflection](docs/Reflection.pdf) - forthcoming
+- [Reflection](docs/Reflection.pdf)
 
 ## Start the environment
 
