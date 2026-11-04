@@ -9,8 +9,13 @@ records, query them, and update and delete individual calculations.
 - [Repository](https://github.com/tkg1121/fastapi-postgres-calculator)
 - [Successful tests and Compose verification](https://github.com/tkg1121/fastapi-postgres-calculator/actions/runs/41763079480)
 - [CI verification screenshot](docs/database/CI%20verification.jpg)
-- [Database assignment PDF with screenshots](docs/Database%20Assignment%20Submission.pdf) - forthcoming
+- [Database assignment PDF with screenshots](docs/Database%20Assignment%20Submission.pdf)
 - [Reflection](docs/Reflection.pdf)
+
+The submission includes a separate pgAdmin screenshot for each of the nine
+required SQL commands, the final two calculation records, and successful
+Compose service output from GitHub Actions. The SQL screenshots were captured
+from the local pgAdmin instance at `localhost:5050`.
 
 ## Start the environment
 
@@ -137,6 +142,10 @@ Compose job builds the stack, waits for healthy services, executes SQL scripts
 
 The linked verification run passed all 130 application tests and the complete
 Compose/SQL job for commit `275cf0d`.
+
+The same stack was also built and run locally. All three services reported
+healthy, `/health/db` returned `fastapi_db`, and the relationship checks passed
+after the SQL commands were executed in pgAdmin.
 
 ## Stop and restart
 
