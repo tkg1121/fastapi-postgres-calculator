@@ -4,6 +4,7 @@ import logging
 import math
 from pathlib import Path
 
+import psycopg
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -11,6 +12,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field, FiniteFloat, field_validator
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.database import get_database_name
 from app.operations import add, divide, multiply, subtract
 
 
@@ -68,6 +70,16 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 async def read_root(request: Request):
     """Serve the calculator page."""
     return templates.TemplateResponse(request=request, name="index.html")
+
+
+@app.get("/health/db", responses={503: {"model": ErrorResponse}})
+def database_health():
+    """Check the Compose database without creating or changing any records."""
+    try:
+        return {"status": "ok", "database": get_database_name()}
+    except psycopg.Error as error:
+        logger.warning("Database health check failed")
+        raise HTTPException(status_code=503, detail="Database unavailable.") from error
 
 
 def calculate(name: str, operation: OperationRequest) -> OperationResponse:

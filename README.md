@@ -1,156 +1,153 @@
-# FastAPI Calculator
+# FastAPI Calculator with PostgreSQL
 
-My IS 601 Module 8 calculator. It provides a browser interface and four JSON API
-endpoints, with unit, integration, and Playwright end-to-end tests.
+This IS601 database assignment runs a FastAPI calculator, PostgreSQL, and pgAdmin
+with Docker Compose. The SQL exercises create related tables, insert sample
+records, query them, and update and delete individual calculations.
 
 ## Submission
 
-- [Submission PDF with links and screenshots](docs/Module%208%20Submission.pdf)
-- [Successful GitHub Actions run](https://github.com/tkg1121/fastapi-calculator/actions/runs/40552794843)
-- [Application running in the browser](docs/Application%20Running.png)
-- [Successful workflow screenshot](docs/GitHub%20Actions.jpg)
+- [Repository](https://github.com/tkg1121/fastapi-postgres-calculator)
+- [Database assignment PDF with screenshots](docs/Database%20Assignment%20Submission.pdf) - forthcoming
+- [Reflection](docs/Reflection.pdf) - forthcoming
 
-The suite contains 24 unit tests, 87 integration tests, and 16 Playwright
-end-to-end tests. All 127 tests passed locally and in GitHub Actions.
+## Start the environment
 
-## Source
-
-This project builds on the instructor's
-[Module 8 calculator](https://github.com/kaw393939/module8_is601/tree/1c2198fab4c0920797a01c9013358e920433e78b).
-It keeps the four arithmetic functions, endpoint paths, and browser calculator
-interactions. Changes add operation and request logging, input/result validation,
-accessible labels, tests, and a CI workflow. The original license is included.
-
-## Setup and run
-
-Use Python 3.11 or newer. CI uses Python 3.12.
+Install Docker Desktop and start its Linux container engine. Clone this repository:
 
 ```bash
-git clone https://github.com/tkg1121/fastapi-calculator.git
-cd fastapi-calculator
-python -m venv .venv
+git clone https://github.com/tkg1121/fastapi-postgres-calculator.git
+cd fastapi-postgres-calculator
 ```
 
-Activate the environment on Windows PowerShell:
+Create the local environment file in PowerShell:
 
 ```powershell
-.\.venv\Scripts\Activate.ps1
+Copy-Item .env.example .env
 ```
 
-On Linux or macOS:
+Or in Bash:
 
 ```bash
-source .venv/bin/activate
+cp .env.example .env
 ```
 
-Install dependencies and start the local server:
+The example passwords are public local-demo values, not real account secrets.
+The `.env` file is ignored by Git. Set different values before using this setup
+in another environment. PostgreSQL reads its initialization password when the
+database volume is first created; changing `.env` afterward does not change an
+existing database user's password.
+
+Build and start the services:
+
+```bash
+docker compose up -d --build --wait
+docker compose ps
+```
+
+| Service | Address | Purpose |
+| --- | --- | --- |
+| FastAPI | [http://localhost:8000](http://localhost:8000) | Browser calculator |
+| Database check | [http://localhost:8000/health/db](http://localhost:8000/health/db) | Actual PostgreSQL connection and database name |
+| pgAdmin | [http://localhost:5050](http://localhost:5050) | Query Tool for the SQL exercises |
+| PostgreSQL | `db:5432` inside Compose | Database server; no host port published |
+
+FastAPI and pgAdmin listen only on the local machine's loopback interface.
+pgAdmin uses desktop mode, so it opens without a separate pgAdmin login. The
+`PGADMIN_DEFAULT_PASSWORD` value is still provided for container initialization;
+it is not the PostgreSQL connection password.
+
+The `/health/db` endpoint returns `{"status":"ok","database":"fastapi_db"}`
+when the database responds, or HTTP 503 with a generic error when it is
+unavailable. It checks connectivity only. The four calculator endpoints retain
+their existing behavior; they do not save calculations or provide a database
+CRUD API. Database records in this assignment are managed with SQL.
+
+## Run the SQL in pgAdmin
+
+1. Open pgAdmin and expand **Servers > FastAPI PostgreSQL**. This server is
+   registered by `pgadmin/servers.json`.
+2. Connect using host `db`, port `5432`, database `fastapi_db`, and user
+   `postgres`. When prompted for a password, enter `POSTGRES_PASSWORD` from
+   `.env`.
+3. Expand **Databases**, select **fastapi_db**, and open **Query Tool**.
+4. On a fresh database, copy each numbered script below into the editor and
+   execute it separately, in order. Capture the query and its **Messages** or
+   **Data Output** after each execution.
+
+| Script | Action | Expected result |
+| --- | --- | --- |
+| `sql/01_create_users.sql` | Create users table | Table created |
+| `sql/02_create_calculations.sql` | Create calculations table | Table created |
+| `sql/03_insert_users.sql` | Insert Alice and Bob | 2 rows inserted |
+| `sql/04_insert_calculations.sql` | Insert three calculations | 3 rows inserted |
+| `sql/05_select_users.sql` | Retrieve users | Alice id 1 and Bob id 2 |
+| `sql/06_select_calculations.sql` | Retrieve calculations | 3 rows |
+| `sql/07_join.sql` | Join calculations to users | Alice owns add/divide; Bob owns multiply |
+| `sql/08_update.sql` | Set calculation 1 result to 6 | 1 row updated |
+| `sql/09_delete.sql` | Delete calculation 2 | 1 row deleted |
+
+These scripts intentionally follow the assignment's SQL. They are not repeatable
+migrations: rerunning CREATE or INSERT statements against the same populated
+database will cause duplicate-table or uniqueness errors. The inserts assume a
+fresh database where Alice and Bob receive ids 1 and 2. No tables or records are
+created automatically when the containers start.
+
+The update changes the stored result for `2 + 3` to `6` to demonstrate SQL UPDATE.
+It does not recalculate the arithmetic or assert that 6 is the correct sum.
+
+## Relationships and verification
+
+One user can own many calculations. Each calculation has one required `user_id`
+referencing `users.id`. The foreign key rejects nonexistent users, and
+`ON DELETE CASCADE` removes a user's calculations when that user is deleted.
+Unique constraints prevent duplicate usernames and email addresses.
+
+After scripts 01-09, run `sql/10_final_state.sql`. It should show two calculations:
+Alice's add row (id 1, result 6) and Bob's multiply row (id 3, result 20).
+
+The optional `sql/11_verify_relationships.sql` checks that final state, rejects
+unknown users and duplicate usernames/emails, and checks cascade deletion. It
+rolls back its row changes so the assignment records remain intact. PostgreSQL
+sequence counters can still advance during failed inserts even after rollback;
+gaps in later ids are expected.
+
+## Tests and continuous integration
+
+The existing unit, API integration, and Playwright tests remain in the project.
+The database endpoint also has mocked tests for a successful connection,
+connection failure, query failure, resource cleanup, and generic error messages.
+
+For local tests, create and activate a Python 3.12 virtual environment, then run:
 
 ```bash
 python -m pip install -r requirements.txt
-python -m uvicorn main:app --host 127.0.0.1 --port 8000
-```
-
-Open [the calculator](http://127.0.0.1:8000) in your browser. Enter two numbers
-and click Add, Subtract, Multiply, or Divide. The result appears on the same
-page. Stop the server with Ctrl+C.
-
-Interactive API documentation is available at
-[Swagger UI](http://127.0.0.1:8000/docs) and
-[ReDoc](http://127.0.0.1:8000/redoc).
-
-## API
-
-| Method | Path | Behavior |
-| --- | --- | --- |
-| GET | `/` | Calculator HTML page |
-| POST | `/add` | Add `a` and `b` |
-| POST | `/subtract` | Subtract `b` from `a` |
-| POST | `/multiply` | Multiply `a` by `b` |
-| POST | `/divide` | Divide `a` by `b` |
-
-The POST endpoints accept JSON numbers:
-
-```json
-{"a": 10, "b": 5}
-```
-
-For `/add`, a successful response has status 200 and the body:
-
-```json
-{"result": 15.0}
-```
-
-Missing operands, strings, booleans, nulls, nonfinite values, malformed JSON,
-division by zero, and overflowing results return status 400 with an `error`
-message. Unexpected calculation failures return a generic status 500 message
-while details are logged on the server. Invalid paths return 404; incorrect
-methods return 405. Calculations use floating-point numbers, so normal decimal
-rounding differences can occur.
-
-## Logging
-
-Python logging records each arithmetic operation and result, HTTP method/path
-and status, validation failures, and calculation errors. Unexpected calculation
-failures include a traceback in the server logs. Logs go to the terminal where
-the server runs. The application does not log request bodies or send logs to an
-external service.
-
-## Tests
-
-Install the Chromium browser used by Playwright:
-
-```bash
 python -m playwright install chromium
-```
-
-On Linux, install its system dependencies as well:
-
-```bash
-python -m playwright install --with-deps chromium
-```
-
-Run the entire suite:
-
-```bash
 python -m pytest -v
 ```
 
-Or run each layer separately:
+On Linux, use `python -m playwright install --with-deps chromium` to install the
+browser's system dependencies too. Browser tests start their own local FastAPI
+server and do not require a manually started server.
+
+GitHub Actions runs all three test layers on pushes and pull requests. A separate
+Compose job builds the stack, waits for healthy services, executes SQL scripts
+01-11 against a fresh database, and checks `/health/db`. SQL errors fail the job.
+
+## Stop and restart
 
 ```bash
-python -m pytest tests/unit -v
-python -m pytest tests/integration -v
-python -m pytest tests/e2e -v --browser chromium
+docker compose logs
+docker compose down
+docker compose up -d --wait
 ```
 
-- **Unit:** all four arithmetic functions, signs, zero, decimals, and logging.
-- **Integration:** the HTML page, all four API endpoints, validation, errors,
-  response shapes, logging, and API documentation.
-- **End-to-end:** Chromium fills in the form and clicks the real buttons. Tests
-  check calculations, divide-by-zero recovery, missing values, overflow, network
-  failure recovery, and multiple calculations in one session.
+The `postgres_data` and `pgadmin_data` named volumes preserve database records
+and pgAdmin settings across normal shutdowns. `docker compose down` does not
+delete these volumes. Avoid adding `--volumes` when you want to keep your work.
 
-The browser tests start their own Uvicorn process on an available loopback port,
-wait for readiness, and shut it down afterward. You do not need to start the
-application manually before running tests. Browser contexts are isolated between
-tests. The network failure test deliberately interrupts one request, then checks
-that a retry works; normal calculation tests use the real API.
+## Source
 
-## GitHub Actions
-
-The workflow installs Python dependencies and Chromium, then runs the unit,
-integration, and end-to-end suites as separate steps on every push and pull
-request. Any failed test fails the workflow.
-
-## Project layout
-
-```text
-main.py                        FastAPI routes, models, and error handling
-app/operations/__init__.py      Arithmetic functions and operation logging
-templates/index.html           Browser calculator
-tests/conftest.py              API client and live server fixtures
-tests/unit/                    Arithmetic tests
-tests/integration/             API and logging tests
-tests/e2e/                     Playwright browser tests
-.github/workflows/tests.yml    Continuous integration
-```
+This project builds on my [Module 8 calculator](https://github.com/tkg1121/fastapi-calculator),
+which started from the instructor's
+[Module 8 source](https://github.com/kaw393939/module8_is601/tree/1c2198fab4c0920797a01c9013358e920433e78b).
+The original MIT license and Keith Williams copyright notice are included.

@@ -22,3 +22,28 @@ jobs:
         run: python -m pytest tests/integration -v
       - name: Playwright end-to-end tests
         run: python -m pytest tests/e2e -v --browser chromium
+
+  compose:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Prepare local environment
+        run: cp .env.example .env
+      - name: Build and start services
+        run: docker compose up -d --build --wait
+      - name: Run SQL exercises and relationship checks
+        run: |
+          for script in sql/0*.sql sql/10_final_state.sql sql/11_verify_relationships.sql; do
+            docker compose exec -T db psql -U postgres -d fastapi_db -v ON_ERROR_STOP=1 -f "/scripts/$(basename "$script")"
+          done
+      - name: Check FastAPI database connection
+        run: |
+          curl --fail --silent --show-error http://localhost:8000/health/db | python3 -c 'import json, sys; result = json.load(sys.stdin); assert result == {"status": "ok", "database": "fastapi_db"}, result'
+      - name: Show service status and logs
+        if: always()
+        run: |
+          docker compose ps
+          docker compose logs --no-color
+      - name: Stop services
+        if: always()
+        run: docker compose down
