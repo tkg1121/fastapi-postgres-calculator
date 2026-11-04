@@ -7,6 +7,8 @@ records, query them, and update and delete individual calculations.
 ## Submission
 
 - [Repository](https://github.com/tkg1121/fastapi-postgres-calculator)
+- [Successful tests and Compose verification](https://github.com/tkg1121/fastapi-postgres-calculator/actions/runs/41763079480)
+- [CI verification screenshot](docs/database/CI%20verification.jpg)
 - [Database assignment PDF with screenshots](docs/Database%20Assignment%20Submission.pdf) - forthcoming
 - [Reflection](docs/Reflection.pdf) - forthcoming
 
@@ -132,6 +134,9 @@ server and do not require a manually started server.
 GitHub Actions runs all three test layers on pushes and pull requests. A separate
 Compose job builds the stack, waits for healthy services, executes SQL scripts
 01-11 against a fresh database, and checks `/health/db`. SQL errors fail the job.
+
+The linked verification run passed all 130 application tests and the complete
+Compose/SQL job for commit `275cf0d`.
 
 ## Stop and restart
 
