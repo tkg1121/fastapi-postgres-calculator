@@ -3,8 +3,9 @@ name: fastapi-postgres-calculator
 services:
   web:
     build: .
+    image: tkg1121/fastapi-postgres-calculator:latest
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:${WEB_PORT:-8000}:8000"
     environment:
       PGHOST: db
       PGPORT: "5432"
