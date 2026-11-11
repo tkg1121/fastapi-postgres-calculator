@@ -169,4 +169,3 @@ This project builds on my [Module 8 calculator](https://github.com/tkg1121/fasta
 which started from the instructor's
 [Module 8 source](https://github.com/kaw393939/module8_is601/tree/1c2198fab4c0920797a01c9013358e920433e78b).
 The original MIT license and Keith Williams copyright notice are included.
-

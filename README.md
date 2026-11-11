@@ -10,6 +10,20 @@ publishing workflow.
 - [GitHub Actions](https://github.com/tkg1121/fastapi-postgres-calculator/actions)
 - [Module 9 SQL exercise and screenshots](docs/Module9-README.md)
 
+## Module 10 submission
+
+- [Submission PDF with repository links and screenshots](docs/Module10.pdf)
+- [Reflection](docs/Module10%20Reflection.pdf)
+- [Successful tests, scan, and Docker Hub deployment](https://github.com/tkg1121/fastapi-postgres-calculator/actions/runs/42955563012)
+- [GitHub Actions screenshot](docs/module10/github-actions.jpg)
+- [Docker Hub screenshot](docs/module10/dockerhub.jpg)
+
+The verified source revision is `d6eef8339601790f4ab57d5e2d2cbba67b20c783`.
+All 206 tests passed: 69 unit, 121 integration (including 27 real PostgreSQL
+tests), and 16 browser tests. The image passed the strict HIGH/CRITICAL security
+scan and was pushed, pulled, and exercised through the API. The screenshots show
+this completed deployment; later documentation-only commits retain that evidence.
+
 ## Run with Docker Compose
 
 Install Docker Desktop and start its Linux engine, then clone the project:
