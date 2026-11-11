@@ -14,11 +14,13 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.database import get_database_name
 from app.operations import add, divide, multiply, subtract
+from app.users import router as users_router
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger(__name__)
 app = FastAPI(title="FastAPI Calculator")
+app.include_router(users_router)
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
 OPERATIONS = {"add": add, "subtract": subtract, "multiply": multiply, "divide": divide}
 
@@ -45,22 +47,33 @@ class ErrorResponse(BaseModel):
     error: str
 
 
+def request_log_path(request: Request) -> str:
+    """Avoid logging arbitrary text supplied as a user-id path parameter."""
+    if request.url.path.startswith("/users/"):
+        return "/users/{user_id}"
+    return request.url.path
+
+
 @app.middleware("http")
 async def log_request(request: Request, call_next):
     """Record the method, path, and status without logging request bodies."""
     response = await call_next(request)
-    logger.info("method=%s path=%s status=%s", request.method, request.url.path, response.status_code)
+    logger.info("method=%s path=%s status=%s", request.method, request_log_path(request), response.status_code)
     return response
 
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    logger.warning("HTTP error path=%s status=%s error=%s", request.url.path, exc.status_code, exc.detail)
+    logger.warning("HTTP error path=%s status=%s error=%s", request_log_path(request), exc.status_code, exc.detail)
     return JSONResponse(status_code=exc.status_code, content={"error": exc.detail}, headers=exc.headers)
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    if request.url.path == "/users" or request.url.path.startswith("/users/"):
+        # Validation errors can contain raw inputs or user-chosen JSON keys.
+        logger.warning("User request validation failed")
+        return JSONResponse(status_code=422, content={"error": "Invalid user data."})
     messages = "; ".join(f"{error['loc'][-1]}: {error['msg']}" for error in exc.errors())
     logger.warning("Validation error path=%s error=%s", request.url.path, messages)
     return JSONResponse(status_code=400, content={"error": messages})
@@ -77,7 +90,7 @@ def database_health():
     """Check the Compose database without creating or changing any records."""
     try:
         return {"status": "ok", "database": get_database_name()}
-    except psycopg.Error as error:
+    except (psycopg.Error, ValueError) as error:
         logger.warning("Database health check failed")
         raise HTTPException(status_code=503, detail="Database unavailable.") from error
 
