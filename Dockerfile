@@ -1,10 +1,12 @@
-FROM python:3.12-slim
+FROM python:3.12-alpine
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY requirements-app.txt .
-RUN pip install --no-cache-dir -r requirements-app.txt \
-    && useradd --create-home --uid 10001 appuser
+RUN apk upgrade --no-cache \
+    && pip install --no-cache-dir -r requirements-app.txt \
+    && addgroup -g 10001 appuser \
+    && adduser -D -u 10001 -G appuser appuser
 COPY app ./app
 COPY templates ./templates
 COPY main.py .
