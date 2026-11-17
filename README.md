@@ -16,6 +16,22 @@ save calculation records.
 - [GitHub Actions](https://github.com/tkg1121/fastapi-postgres-calculator/actions)
 - [Module 9 SQL exercise and screenshots](docs/Module9-README.md)
 
+## Module 11 submission
+
+- [Submission PDF with repository links, screenshots, and reflection](docs/Module11.pdf)
+- [Separate reflection PDF](docs/Module11%20Reflection.pdf)
+- [Successful tests, scan, and Docker Hub deployment](https://github.com/tkg1121/fastapi-postgres-calculator/actions/runs/44196064737)
+- [GitHub Actions screenshot](docs/module11/github-actions.png)
+- [Docker Hub screenshot](docs/module11/dockerhub.png)
+
+The verified application source revision is
+`ef58262c55adfeca45d4e5bcbd614d15d9a110a8`. All 294 tests passed:
+132 unit, 146 integration (including 52 real PostgreSQL tests), and 16 browser
+tests. The Compose checks passed, the image passed the HIGH/CRITICAL security
+scan, and the workflow pushed, pulled, and checked the published image. The
+screenshots document that completed deployment; later documentation commits do
+not change the application source.
+
 ## Run with Docker Compose
 
 Install Docker Desktop and start its Linux engine, then clone the project:
