@@ -70,7 +70,7 @@ jobs:
           for script in sql/0*.sql sql/10_final_state.sql sql/11_verify_relationships.sql; do
             docker compose exec -T db psql -U postgres -d fastapi_db -v ON_ERROR_STOP=1 -f "/scripts/$(basename "$script")"
           done
-      - name: Verify application and secure users
+      - name: Verify user and calculation API
         run: python3 scripts/verify_deployment.py
       - name: Show service status and logs
         if: always()

@@ -1,22 +1,23 @@
-# FastAPI Calculator: Calculation Models and Validation
+# FastAPI Calculator: User and Calculation API
 
-This IS601 Module 11 assignment continues my own calculator from Modules 8-10.
-It adds a SQLAlchemy calculation model, Pydantic creation and response schemas,
-a calculation factory, an Alembic migration, and unit and real PostgreSQL
-integration tests. The existing user model, password hashing, browser calculator,
-and Docker Hub workflow remain part of the project.
+This IS601 Module 12 assignment continues my calculator from Modules 8-11. It
+adds registration and login endpoints and a complete Browse, Read, Edit, Add,
+Delete (BREAD) API for persisted calculations. SQLAlchemy stores the records in
+PostgreSQL, Pydantic validates requests and responses, and the existing factory
+computes results. Real database integration tests and GitHub Actions verify the
+routes before a Docker image is published.
 
-Module 11 builds and tests the calculation data layer. Calculation CRUD API
-endpoints are reserved for Module 12; this version does not expose a
-`/calculations` endpoint. The earlier arithmetic endpoints still work, but do not
-save calculation records.
+Login verifies a password and returns public user details. This module does not
+issue tokens or restrict calculation routes; sessions and route authorization are
+optional extensions. The earlier arithmetic endpoints and browser calculator
+remain available and do not save calculation records.
 
 - [GitHub repository](https://github.com/tkg1121/fastapi-postgres-calculator)
 - [Docker Hub image](https://hub.docker.com/r/tkg1121/fastapi-postgres-calculator)
 - [GitHub Actions](https://github.com/tkg1121/fastapi-postgres-calculator/actions)
 - [Module 9 SQL exercise and screenshots](docs/Module9-README.md)
 
-## Module 11 submission
+## Previous Module 11 submission
 
 - [Submission PDF with repository links, screenshots, and reflection](docs/Module11.pdf)
 - [Separate reflection PDF](docs/Module11%20Reflection.pdf)
@@ -125,7 +126,25 @@ required fields, supported operation names, finite values, and a nonzero divisor
 for division, including writes that bypass Pydantic.
 
 Migration `0002_create_calculations` adds this table after the existing user
-migration. No user relationship or calculation route is introduced in Module 11.
+migration. Module 12 exposes it through the calculation API without changing the
+database schema or adding a user relationship.
+
+## Calculation BREAD API
+
+| Request | Successful result | Common errors |
+| --- | --- | --- |
+| `GET /calculations` | `200`, records ordered by ascending ID | `503` database unavailable |
+| `GET /calculations/{id}` | `200`, one record | `404` missing; `422` invalid ID; `503` database unavailable |
+| `POST /calculations` | `201`, new record and computed result | `422` invalid input; `400` non-finite result; `503` database unavailable |
+| `PUT /calculations/{id}` | `200`, replaced inputs and recomputed result | `404` missing; `422` invalid input; `400` non-finite result; `503` database unavailable |
+| `DELETE /calculations/{id}` | `204`, empty response | `404` missing; `422` invalid ID; `503` database unavailable |
+
+`POST` and `PUT` accept a full `CalculationCreate` body with `a`, `b`, and `type`.
+The response uses `CalculationRead`: `id`, `a`, `b`, `type`, `result`, and
+`created_at`. Editing preserves the record ID and creation time. The service
+recomputes the result from the supplied operands and operation rather than
+trusting a caller-supplied result. Deleting removes the record. Request validation
+returns a generic error without copying submitted values into logs or responses.
 
 ## User model and API
 
@@ -149,11 +168,14 @@ original password. `UserRead` exposes only `id`, `username`, `email`, and
 
 | Request | Successful result | Error responses |
 | --- | --- | --- |
-| `POST /users` | `201`, newly created public user fields | `409` duplicate username/email; `422` invalid input; `503` database unavailable |
+| `POST /users/register` | `201`, newly created public user fields | `409` duplicate username/email; `422` invalid input; `503` database unavailable |
+| `POST /users/login` | `200`, public user fields after password verification | `401` invalid credentials; `422` invalid input; `503` database unavailable |
 | `GET /users/{user_id}` | `200`, public user fields | `404` missing user; `422` invalid ID; `503` database unavailable |
 | `GET /health/db` | `200`, connection status and database name | `503` database unavailable |
 
-Open `/docs`, expand `POST /users`, select **Try it out**, and submit:
+The earlier `POST /users` remains available as a registration alias.
+
+Open `/docs`, expand `POST /users/register`, select **Try it out**, and submit:
 
 ```json
 {
@@ -164,12 +186,40 @@ Open `/docs`, expand `POST /users`, select **Try it out**, and submit:
 ```
 
 Use the returned `id` with `GET /users/{user_id}`. Repeating the same registration
-returns `409`. Validation and database errors use generic messages without
-including submitted passwords, stored hashes, or connection credentials.
+returns `409`. Then expand `POST /users/login` and submit either a username or
+email with the same password:
 
-The existing user API implements registration and lookup. It does not provide login,
-access tokens, or authenticated access control. The existing `/add`, `/subtract`,
-`/multiply`, and `/divide` endpoints and browser calculator remain available.
+```json
+{
+  "username": "example_user",
+  "password": "Example password phrase 2026!"
+}
+```
+
+Login returns the same public fields as registration. It requires exactly one
+username or email; a wrong password or unknown identity returns the same `401`
+message. Responses and application logs omit plaintext passwords, stored hashes,
+and connection credentials. No session or token is created.
+
+To check calculation BREAD manually in `/docs`, first run
+`POST /calculations` with this body:
+
+```json
+{
+  "a": 10,
+  "b": 2,
+  "type": "divide"
+}
+```
+
+The `201` response has `result: 5` and a generated `id`. Use that ID with
+`GET /calculations/{id}` and confirm the record also appears in
+`GET /calculations`. Next, `PUT /calculations/{id}` with `a: 10`, `b: 4`, and
+`type: "subtract"`; the result becomes `6` while the ID and creation time stay
+the same. Finally, `DELETE /calculations/{id}` returns `204`, and a subsequent
+read returns `404`. Try division with `b: 0` to see input validation return `422`.
+The older `/add`, `/subtract`, `/multiply`, and `/divide` endpoints and browser
+calculator remain available.
 
 ## Database configuration
 
@@ -215,7 +265,7 @@ python -m playwright install chromium
 On Linux, use `python -m playwright install --with-deps chromium` for browser
 system dependencies.
 
-Unit tests do not require a database. Run all unit tests, or just the Module 11
+Unit tests do not require a database. Run all unit tests, or just the calculation
 schema and factory tests:
 
 ```bash
@@ -264,19 +314,24 @@ python -m alembic check
 python -m pytest -v
 ```
 
-The suite includes the existing user, API, arithmetic, and browser tests along
-with calculation schema, factory, and database tests. Calculation tests cover all
-four operations, invalid types and operands, division by zero, overflow, response
-serialization, persisted results and timestamps, database constraints, and
-transaction rollback.
+The suite covers arithmetic, schemas, password hashing, user registration and
+login, calculation BREAD routes, database constraints, and browser calculations.
+The route integration tests exercise real PostgreSQL, including creation,
+retrieval, editing, deletion, invalid inputs, duplicate identities, and rollback.
 
 Database tests use actual PostgreSQL connections and transactions with savepoints
 to isolate changes. `REQUIRE_DATABASE_TESTS=1` makes a missing test connection fail
 rather than silently skipping database tests. Browser tests start and stop their
 own Uvicorn server on an available port.
 
-After applying migrations and setting the connection variables above, run only
-the Module 11 unit and PostgreSQL tests with:
+After applying migrations and setting the connection variables above, run the
+new Module 12 route integration tests with:
+
+```bash
+python -m pytest tests/integration/test_module12_routes.py -v
+```
+
+The earlier Module 11 schema, factory, and PostgreSQL tests can be run with:
 
 ```bash
 python -m pytest tests/unit/test_calculations.py tests/integration/test_calculation_database.py -v
@@ -309,8 +364,8 @@ started manually. The workflow:
    Docker. Trivy scans its operating-system and library packages; HIGH or
    CRITICAL vulnerabilities fail the job. The scan report is retained as a
    workflow artifact.
-4. Starts the scanned image against PostgreSQL and checks the calculator,
-   registration, and user lookup.
+4. Starts the scanned image against PostgreSQL and checks registration, login,
+   calculation BREAD, and the earlier calculator routes.
 5. For `main` branch runs outside pull requests, signs in to Docker Hub and
    publishes that same image as `latest` and `sha-<commit>`.
 6. Removes the local image tags, pulls the published image, and runs it by its
@@ -348,15 +403,16 @@ Do not add `--volumes` if you want to keep those records and settings.
 
 ```text
 app/models.py                 SQLAlchemy User and Calculation models
-app/schemas.py                User and calculation creation/response schemas
+app/schemas.py                User login and creation/response schemas; calculation schemas
 app/calculations.py           Calculation factory and persistence helper
+app/calculation_routes.py     Calculation BREAD API routes
 app/security.py               Argon2id hash and verify helpers
-app/users.py                  Registration and lookup routes
+app/users.py                  Registration, login, and lookup routes
 app/database.py               Database configuration and sessions
 migrations/                   Alembic user and calculation migrations
 scripts/verify_deployment.py   Container/API smoke checks
 tests/unit/                   Arithmetic, schema, factory, and password tests
-tests/integration/            API and real PostgreSQL persistence tests
+tests/integration/            User and calculation API and real PostgreSQL tests
 tests/e2e/                    Playwright calculator tests
 .github/workflows/ci.yml       Tests, image scan, and Docker Hub publishing
 ```
@@ -369,7 +425,8 @@ which began with the instructor's
 The original MIT license and Keith Williams copyright notice are retained.
 The user model, password handling, and deployment workflow extended that project
 for Module 10. The calculation model, schemas, factory, migration, and associated
-tests extend it for Module 11.
+tests extended it for Module 11. Registration, login, and calculation BREAD routes
+extend the same project for Module 12.
 
 Further reading: [FastAPI's password-hashing example](https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/)
 and [Docker's test-before-push workflow](https://docs.docker.com/build/ci/github-actions/test-before-push/).
@@ -385,4 +442,4 @@ and [Docker's test-before-push workflow](https://docs.docker.com/build/ci/github
 These archived screenshots document source revision
 `d6eef8339601790f4ab57d5e2d2cbba67b20c783`, which passed 206 tests and the
 HIGH/CRITICAL image scan before publishing and checking the pulled image. They
-record the earlier Module 10 submission, not the current Module 11 test run.
+record the earlier Module 10 submission, not the Module 12 test run.

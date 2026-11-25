@@ -33,6 +33,31 @@ class UserRead(BaseModel):
     created_at: datetime
 
 
+class UserLogin(BaseModel):
+    """Accept one normalized username or email and the unchanged password."""
+
+    model_config = ConfigDict(extra="forbid", hide_input_in_errors=True, strict=True)
+
+    username: str | None = Field(
+        default=None, min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_]+$"
+    )
+    email: EmailStr | None = Field(default=None, max_length=254)
+    password: SecretStr = Field(min_length=1, max_length=128)
+
+    @field_validator("username", "email", mode="before")
+    @classmethod
+    def normalize_identity(cls, value):
+        if isinstance(value, str):
+            return value.strip().lower()
+        return value
+
+    @model_validator(mode="after")
+    def require_one_identity(self):
+        if (self.username is None) == (self.email is None):
+            raise ValueError("Provide exactly one username or email.")
+        return self
+
+
 CalculationType = Literal["add", "subtract", "multiply", "divide"]
 
 

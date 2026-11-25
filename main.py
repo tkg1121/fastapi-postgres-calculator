@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, FiniteFloat, field_validator
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.database import get_database_name
+from app.calculation_routes import router as calculations_router
 from app.operations import add, divide, multiply, subtract
 from app.users import router as users_router
 
@@ -21,6 +22,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger(__name__)
 app = FastAPI(title="FastAPI Calculator")
 app.include_router(users_router)
+app.include_router(calculations_router)
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
 OPERATIONS = {"add": add, "subtract": subtract, "multiply": multiply, "divide": divide}
 
@@ -49,8 +51,12 @@ class ErrorResponse(BaseModel):
 
 def request_log_path(request: Request) -> str:
     """Avoid logging arbitrary text supplied as a user-id path parameter."""
+    if request.url.path in {"/users/register", "/users/login"}:
+        return request.url.path
     if request.url.path.startswith("/users/"):
         return "/users/{user_id}"
+    if request.url.path.startswith("/calculations/"):
+        return "/calculations/{calculation_id}"
     return request.url.path
 
 
@@ -74,6 +80,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         # Validation errors can contain raw inputs or user-chosen JSON keys.
         logger.warning("User request validation failed")
         return JSONResponse(status_code=422, content={"error": "Invalid user data."})
+    if request.url.path == "/calculations" or request.url.path.startswith("/calculations/"):
+        logger.warning("Calculation request validation failed")
+        return JSONResponse(status_code=422, content={"error": "Invalid calculation data."})
     messages = "; ".join(f"{error['loc'][-1]}: {error['msg']}" for error in exc.errors())
     logger.warning("Validation error path=%s error=%s", request.url.path, messages)
     return JSONResponse(status_code=400, content={"error": messages})

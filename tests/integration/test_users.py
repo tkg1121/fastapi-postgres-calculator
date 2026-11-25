@@ -2,13 +2,17 @@
 
 from datetime import datetime, timezone
 import logging
+from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.orm import Session
 
+from app.database import get_db
 from app.models import User
 from app.security import hash_password, verify_password
+from main import app
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.database]
@@ -213,5 +217,37 @@ def test_database_errors_are_generic_and_do_not_expose_credentials(
     assert response.status_code == 503
     assert response.json() == {"error": "Database unavailable."}
     for secret in [user_payload["password"], "private-password-hash", "private-database-credentials"]:
+        assert secret not in response.text
+        assert secret not in caplog.text
+
+
+@pytest.mark.parametrize("path,failed_method", [
+    ("/users/login", "scalar"), ("/users/register", "flush"),
+])
+def test_failed_rollback_keeps_database_error_generic(
+    client, user_payload, monkeypatch, caplog, path, failed_method,
+):
+    session = MagicMock(spec=Session)
+    getattr(session, failed_method).side_effect = OperationalError(
+        "private original statement", {}, RuntimeError("private original credentials"),
+    )
+    session.rollback.side_effect = OperationalError(
+        "private rollback statement", {}, RuntimeError("private rollback credentials"),
+    )
+    monkeypatch.setitem(app.dependency_overrides, get_db, lambda: session)
+    payload = user_payload if path == "/users/register" else {
+        "username": user_payload["username"], "password": user_payload["password"],
+    }
+
+    response = client.post(path, json=payload)
+
+    assert response.status_code == 503
+    assert response.json() == {"error": "Database unavailable."}
+    session.rollback.assert_called_once()
+    assert "User database rollback failed" in caplog.text
+    for secret in [
+        user_payload["password"], "private original statement", "private original credentials",
+        "private rollback statement", "private rollback credentials",
+    ]:
         assert secret not in response.text
         assert secret not in caplog.text
