@@ -17,6 +17,20 @@ remain available and do not save calculation records.
 - [GitHub Actions](https://github.com/tkg1121/fastapi-postgres-calculator/actions)
 - [Module 9 SQL exercise and screenshots](docs/Module9-README.md)
 
+## Module 12 submission
+
+- [Submission PDF with links, browser screenshots, deployment evidence, and reflection](docs/Module12.pdf)
+- [Separate reflection PDF](docs/Module12%20Reflection.pdf)
+- [Successful source workflow](https://github.com/tkg1121/fastapi-postgres-calculator/actions/runs/45599526638) for commit [`37b86bf`](https://github.com/tkg1121/fastapi-postgres-calculator/commit/37b86bf7d44e70c308da2ffc868c653d72be16b5)
+- [OpenAPI application screenshot](docs/module12/openapi.png)
+- [Registration](docs/module12/register.png) and [login](docs/module12/login.png) screenshots
+- Calculation screenshots: [browse](docs/module12/calculation-browse.png), [read](docs/module12/calculation-read.png), [edit](docs/module12/calculation-edit.png), [add](docs/module12/calculation-create.png), and [delete](docs/module12/calculation-delete.png)
+- [Successful GitHub Actions screenshot](docs/module12/github-actions.png) and [Docker Hub tag screenshot](docs/module12/dockerhub.png)
+
+The source workflow passed its unit, PostgreSQL integration, browser, Compose,
+image scan, push, and published-image pull checks. The browser screenshots show
+actual `/docs` requests against the local Docker Compose application.
+
 ## Previous Module 11 submission
 
 - [Submission PDF with repository links, screenshots, and reflection](docs/Module11.pdf)
